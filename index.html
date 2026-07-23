@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSBU Model Viewer</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        background: #1a1a1a;
+        color: #fff;
+      }
+      #app {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+      #sidebar {
+        width: 300px;
+        background: #2a2a2a;
+        padding: 20px;
+        box-sizing: border-box;
+        z-index: 10;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+      }
+      #canvas-container {
+        flex-grow: 1;
+        height: 100%;
+        position: relative;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        background: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover { background: #005999; }
+      ul { list-style: none; padding: 0; max-height: 70vh; overflow-y: auto; }
+      li { padding: 5px; font-size: 12px; border-bottom: 1px solid #3a3a3a; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="sidebar">
+        <h2>SSBU Viewer</h2>
+        <p>Select a character mod folder containing your model files.</p>
+        <button id="import-btn">📁 Import Mod Folder</button>
+        <h3>Detected Files:</h3>
+        <ul id="file-list"></ul>
+      </div>
+      <div id="canvas-container"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
