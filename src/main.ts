@@ -1,89 +1,143 @@
 import * as THREE from 'three';
+import { SSBUModFiles } from './types';
 
-// 1. Initialize 3D Engine Variables
+// Global Engine Variables
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 const container = document.getElementById('canvas-container')!;
+const importBtn = document.getElementById('import-btn')!;
+const fileListUI = document.getElementById('file-list')!;
 
-function init3D() {
-  // Create Scene and background color
+// Active imported data pointer tracking
+const activeModContext: SSBUModFiles = { textures: [] };
+
+/**
+ * Initialize core 3D scene elements
+ */
+function initEngine(): void {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+  scene.background = new THREE.Color(0x111111);
 
-  // Configure Camera (Field of View, Aspect Ratio, Near plane, Far plane)
   camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-  camera.position.set(0, 10, 25);
+  camera.position.set(0, 5, 15);
 
-  // Setup Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
-  // Add Basic Ambient and Directional Lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
+  // Setup generic stage lighting
+  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambient);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(10, 20, 15);
-  scene.add(dirLight);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  keyLight.position.set(5, 10, 7);
+  scene.add(keyLight);
 
-  // Add a simple ground grid system for reference alignment
-  const gridHelper = new THREE.GridHelper(30, 30, 0x007acc, 0x444444);
-  scene.add(gridHelper);
+  // Reference grid system mapping out world tracking boundaries
+  const visualGrid = new THREE.GridHelper(20, 20, 0x0a84ff, 0x444446);
+  scene.add(visualGrid);
 
-  // Add a placeholder cube so you know the viewport works immediately
-  const geo = new THREE.BoxGeometry(2, 2, 2);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x007acc });
-  const cube = new THREE.Mesh(geo, mat);
-  cube.position.y = 1; // Sit on top of the grid
-  scene.add(cube);
+  // Fallback structural rendering placeholder cube
+  const geometry = new THREE.BoxGeometry(2, 2, 2);
+  const material = new THREE.MeshStandardMaterial({ color: 0x0a84ff, roughness: 0.4 });
+  const meshPlaceholder = new THREE.Mesh(geometry, material);
+  meshPlaceholder.position.y = 1;
+  meshPlaceholder.name = "placeholder_cube";
+  scene.add(meshPlaceholder);
 
-  // Handle Window Resizing
-  window.addEventListener('resize', onWindowResize);
-
-  // Start the Animation Render Loop
-  animate();
+  window.addEventListener('resize', handleResize);
+  renderLoop();
 }
 
-function animate() {
-  requestAnimationFrame(animate);
+function renderLoop(): void {
+  requestAnimationFrame(renderLoop);
+  
+  // Rotate fallback cube while waiting for file streams
+  const targetCube = scene.getObjectByName("placeholder_cube");
+  if (targetCube) {
+    targetCube.rotation.y += 0.005;
+  }
+
   renderer.render(scene, camera);
 }
 
-function onWindowResize() {
+function handleResize(): void {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
-// 2. Folder Import Execution Engine
-const importBtn = document.getElementById('import-btn')!;
-const fileListUI = document.getElementById('file-list')!;
+/**
+ * Recursive background process traversing folder entries safely
+ */
+async function processDirectory(dirHandle: any): Promise<void> {
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile() as File;
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
+      switch (fileExtension) {
+        case 'numdlb':
+          activeModContext.model = file;
+          appendFileToUI(file.name);
+          break;
+        case 'numshb':
+          activeModContext.mesh = file;
+          appendFileToUI(file.name);
+          break;
+        case 'nusktb':
+          activeModContext.skeleton = file;
+          appendFileToUI(file.name);
+          break;
+        case 'numatb':
+          activeModContext.material = file;
+          appendFileToUI(file.name);
+          break;
+        case 'nutexb':
+          activeModContext.textures.push(file);
+          appendFileToUI(file.name);
+          break;
+      }
+    } else if (entry.kind === 'directory') {
+      // Recurse down subfolders looking for deep nested models
+      await processDirectory(entry);
+    }
+  }
+}
+
+function appendFileToUI(fileName: string): void {
+  const item = document.createElement('li');
+  item.className = 'file-item';
+  item.textContent = `📄 ${fileName}`;
+  fileListUI.appendChild(item);
+}
+
+/**
+ * Handle native directory selection actions safely
+ */
 importBtn.addEventListener('click', async () => {
   try {
-    // Open native folder dialog selection window
-    // @ts-ignore (Avoid typescript syntax complaining about experimental API features)
-    const dirHandle = await window.showDirectoryPicker();
-    fileListUI.innerHTML = ''; // Clear prior entries
+    // @ts-ignore - showDirectoryPicker is an experimental modern API feature
+    const folderHandle = await window.showDirectoryPicker();
+    
+    // Clear initial layout states
+    fileListUI.innerHTML = '';
+    activeModContext.textures = [];
+    
+    await processDirectory(folderHandle);
 
-    // Recursively list target folder elements
-    for await (const entry of dirHandle.values()) {
-      if (entry.kind === 'file') {
-        const file = await entry.getFile();
-        const li = document.createElement('li');
-        li.textContent = `📄 ${file.name}`;
-        fileListUI.appendChild(li);
-        
-        // TODO: Pass specific targeted extensions (.numdlb, .numshb) 
-        // to your custom model parser modules here
-      }
+    if (!activeModContext.model && !activeModContext.mesh) {
+      fileListUI.innerHTML = `<p style="text-align: center; color: #ff453a; font-size: 0.8rem;">No SSBU .numdlb/.numshb files found.</p>`;
+    } else {
+      console.log("Ready to execute custom parser layers: ", activeModContext);
+      // Next integration step: passing binary data payloads to array buffers
     }
-  } catch (err) {
-    console.error('Directory read operation cancelled or failed:', err);
+  } catch (error) {
+    console.warn("Folder parsing operation rejected or crashed:", error);
   }
 });
 
-// Run application engine
-init3D();
+// Fire system initialization engine
+initEngine();
