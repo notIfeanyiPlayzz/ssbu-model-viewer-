@@ -1,2 +1,2 @@
-# ssbu-model-viewer-
-A software that let's you view .numshb, .numsktb, .nuhlpb, .numshexb, .numatb, .numdlb, and nutexb files
+# ssbu-model-viewer
+SSBU Model Viewer (SSBUMV) is a web and application tool that let's you view
