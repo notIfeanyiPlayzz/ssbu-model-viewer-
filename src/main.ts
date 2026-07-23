@@ -208,6 +208,48 @@ fileListUI.addEventListener('click', async (e) => {
   }
 });
 
+// Add this import statement right alongside your current parser hooks at the top header of main.ts
+import { parseSmashSkeleton } from './skeletonParser';
+
+// Locate your fileListUI click listener at the bottom area of your main.ts file
+// Look for the conditional branch where file strings are filtered, and update it to match this look:
+
+if (selectedTargetFile.name.toLowerCase().endsWith('.numshb')) {
+  await renderTargetMeshFile(selectedTargetFile);
+} else if (selectedTargetFile.name.toLowerCase().endsWith('.nusktb')) {
+  // --- RENDERING BONE SKELETON WIREFRAMES ---
+  try {
+    const fileBuffer = await selectedTargetFile.arrayBuffer();
+    const skeletonData = parseSmashSkeleton(fileBuffer);
+
+    // Clear previous temporary rig lines from view
+    const existingSkeleton = scene.getObjectByName("active_character_skeleton");
+    if (existingSkeleton) scene.remove(existingSkeleton);
+
+    // Create a group container to attach individual bone nodes together
+    const skeletonGroup = new THREE.Group();
+    skeletonGroup.name = "active_character_skeleton";
+
+    skeletonData.bones.forEach(bone => {
+      // Draw a tiny visual marker sphere at each individual joint location point
+      const jointGeo = new THREE.SphereGeometry(0.1, 8, 8);
+      const jointMat = new THREE.MeshBasicMaterial({ color: 0x30d158 }); // Bright neon green for bones
+      const jointMesh = new THREE.Mesh(jointGeo, jointMat);
+      
+      jointMesh.position.set(bone.position.x, bone.position.y, bone.position.z);
+      skeletonGroup.add(jointMesh);
+    });
+
+    scene.add(skeletonGroup);
+    console.log(`Successfully mapped bone structure overlay rigs for: ${selectedTargetFile.name}`);
+
+  } catch (skelError) {
+    console.error("Failed to translate character skeleton data arrays:", skelError);
+  }
+} else {
+  console.log(`Selected layout data file attributes info trace: ${selectedTargetFile.name}`);
+}
+
 async function runTauriDesktopImport() {
   try {
     const tauriApiDialog = '@tauri-apps/plugin-dialog';
