@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { SSBUModFiles } from './types';
 
-// Engine Architecture Variables
+// WebGL Engine Parameters
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 const container = document.getElementById('canvas-container')!;
-const importBtn = document.getElementById('import-btn')!;
-const fallbackInput = document.getElementById('fallback-input') as HTMLInputElement;
+const folderInput = document.getElementById('folder-input') as HTMLInputElement;
 const fileListUI = document.getElementById('file-list')!;
 
+// Active data stream tracking container
 const activeModContext: SSBUModFiles = { textures: [] };
 
 function initEngine(): void {
@@ -25,9 +25,9 @@ function initEngine(): void {
   container.appendChild(renderer.domElement);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  keyLight.position.set(5, 10, 7);
-  scene.add(keyLight);
+  const light = new THREE.DirectionalLight(0xffffff, 0.8);
+  light.position.set(5, 10, 7);
+  scene.add(light);
 
   const visualGrid = new THREE.GridHelper(20, 20, 0x0a84ff, 0x444446);
   scene.add(visualGrid);
@@ -57,7 +57,7 @@ function handleResize(): void {
 }
 
 /**
- * Validates file extensions and adds matching types to the active bundle
+ * Filter streaming file elements by targeted proprietary extensions
  */
 function evaluateAndStoreFile(file: File): void {
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
@@ -93,74 +93,34 @@ function appendFileToUI(fileName: string): void {
   fileListUI.appendChild(item);
 }
 
-function resetModContext(): void {
+/**
+ * Native input element payload change trigger handler
+ */
+folderInput.addEventListener('change', () => {
+  if (!folderInput.files || folderInput.files.length === 0) return;
+  
+  // Wipe tracking states clean for fresh import batches
   fileListUI.innerHTML = '';
   activeModContext.model = undefined;
   activeModContext.mesh = undefined;
   activeModContext.skeleton = undefined;
   activeModContext.material = undefined;
   activeModContext.textures = [];
-}
 
-function verifyImportResults(): void {
-  if (!activeModContext.model && !activeModContext.mesh) {
-    fileListUI.innerHTML = `<p style="text-align: center; color: #ff453a; font-size: 0.8rem; width: 100%;">No valid SSBU files found (.numdlb/.numshb).</p>`;
-  } else {
-    console.log("Assets verified and structured successfully:", activeModContext);
-  }
-}
-
-/**
- * Chromium Path: Recursive Directory Scanner
- */
-async function processDirectory(dirHandle: any): Promise<void> {
-  for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'file') {
-      const file = await entry.getFile() as File;
-      evaluateAndStoreFile(file);
-    } else if (entry.kind === 'directory') {
-      await processDirectory(entry);
-    }
-  }
-}
-
-/**
- * Dynamic Click Event Routing Engine
- */
-importBtn.addEventListener('click', async () => {
-  // Check if browser natively supports the experimental direct picker API (Chrome/Edge)
-  if ('showDirectoryPicker' in window) {
-    try {
-      // @ts-ignore
-      const folderHandle = await window.showDirectoryPicker();
-      resetModContext();
-      await processDirectory(folderHandle);
-      verifyImportResults();
-    } catch (error) {
-      console.warn("Directory picking was terminated or failed:", error);
-    }
-  } else {
-    // Fallback Path: Trigger the hidden directory input element (Firefox/Safari)
-    fallbackInput.click();
-  }
-});
-
-/**
- * Fallback Path: Listens for file selection updates via traditional input data stream
- */
-fallbackInput.addEventListener('change', () => {
-  if (!fallbackInput.files || fallbackInput.files.length === 0) return;
-  
-  resetModContext();
-  
-  // Convert FileList collection into a standard array loop
-  const discoveredFiles = Array.from(fallbackInput.files);
-  for (const file of discoveredFiles) {
+  // Parse total flat file entry array data
+  const uploadedFiles = Array.from(folderInput.files);
+  for (const file of uploadedFiles) {
     evaluateAndStoreFile(file);
   }
   
-  verifyImportResults();
+  // Verify contents match requirement signatures
+  if (!activeModContext.model && !activeModContext.mesh) {
+    fileListUI.innerHTML = `<p style="text-align: center; color: #ff453a; font-size: 0.8rem; width: 100%;">No valid SSBU formats detected (.numdlb / .numshb).</p>`;
+  } else {
+    console.log("Mod folder assets grouped securely in application memory:", activeModContext);
+  }
 });
 
-// Run graphics application
+// Run engine initialization context
 initEngine();
+
