@@ -7,7 +7,7 @@
     <style>
       body, html {
         margin: 0; padding: 0; width: 100%; height: 100%;
-        overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: #111; color: #eee;
       }
       #app { display: flex; width: 100vw; height: 100vh; }
@@ -20,12 +20,19 @@
       h2, h3 { margin: 0; padding: 0; color: #fff; font-weight: 600; }
       h2 { font-size: 1.2rem; } h3 { font-size: 0.9rem; text-transform: uppercase; color: #8e8e93; letter-spacing: 0.5px; }
       p { margin: 0; font-size: 0.85rem; color: #aeaeb2; line-height: 1.4; }
-      .btn {
+      
+      /* The Native Styled Upload Container Component */
+      .folder-upload-label {
         width: 100%; padding: 12px; background: #0a84ff; color: #fff;
-        border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
-        font-size: 0.9rem; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        border-radius: 6px; cursor: pointer; font-weight: 600;
+        font-size: 0.9rem; text-align: center; box-sizing: border-box;
+        transition: background 0.2s; display: block;
       }
-      .btn:hover { background: #0066cc; }
+      .folder-upload-label:hover { background: #0066cc; }
+      
+      /* Keep the original raw text input hidden, label forwards native clicks safely */
+      #folder-input { display: none; }
+
       #file-list {
         flex-grow: 1; border: 1px solid #2c2c2e; border-radius: 6px;
         background: #2c2c2e; margin: 0; padding: 10px; list-style: none;
@@ -42,16 +49,21 @@
     <div id="app">
       <div id="sidebar">
         <h2>ssbu-model-viewer</h2>
-        <p>Import a native ARCropolis character mod folder folder to visualize game models.</p>
-        <button class="btn" id="import-btn">📁 Import Mod Folder</button>
+        <p>Select your ARCropolis character mod folder to visualize game models.</p>
+        
+        <!-- Native interaction component -->
+        <label for="folder-input" class="folder-upload-label">
+          📁 Import Mod Folder
+        </label>
+        <input type="file" id="folder-input" webkitdirectory directory multiple />
+
         <h3>Detected Mod Files</h3>
         <ul id="file-list">
-          <p style="text-align: center; padding-top: 20px;">No folder imported yet.</p>
+          <p id="empty-msg" style="text-align: center; padding-top: 20px; color: #8e8e93; font-size: 0.85rem;">No folder imported yet.</p>
         </ul>
       </div>
       <div id="canvas-container"></div>
     </div>
-    <script type="module" src="/src/types.ts"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
