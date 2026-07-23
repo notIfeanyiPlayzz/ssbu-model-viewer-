@@ -11,9 +11,10 @@
   "dependencies": {
     "three": "^0.160.0"
   },
-  "devDependencies": {
+   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0-rc",
     "@types/three": "^0.160.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.0"
-  }
+   }
 }
