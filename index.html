@@ -45,16 +45,13 @@
       }
     </style>
   </head>
-  <body>
+   <body>
     <div id="app">
       <div id="sidebar">
         <h2>ssbu-model-viewer</h2>
         <p>Select your ARCropolis character mod folder to visualize game models.</p>
         
-        <!-- Native interaction component -->
-        <label for="folder-input" class="folder-upload-label">
-          📁 Import Mod Folder
-        </label>
+        <button class="btn" id="import-btn">📁 Import Mod Folder</button>
         <input type="file" id="folder-input" webkitdirectory directory multiple />
 
         <h3>Detected Mod Files</h3>
@@ -62,8 +59,12 @@
           <p id="empty-msg" style="text-align: center; padding-top: 20px; color: #8e8e93; font-size: 0.85rem;">No folder imported yet.</p>
         </ul>
       </div>
+      
+      <!-- CRITICAL VIEWPORT: Ensure this container sits directly below your sidebar -->
       <div id="canvas-container"></div>
     </div>
+    
     <script type="module" src="/src/main.ts"></script>
   </body>
+
 </html>
