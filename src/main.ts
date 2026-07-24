@@ -215,6 +215,46 @@ fileListUI.addEventListener('click', async (e) => {
   }
 });
 
+// Add this import line directly at the top of your main.ts file alongside your other modules:
+import { parseSmashMaterial } from './materialParser';
+
+// Locate your fileListUI click event handler at the bottom of main.ts, 
+// and insert this extra branch directly after your existing '.nusktb' check block:
+
+  } else if (selectedTargetFile.name.toLowerCase().endsWith('.numatb')) {
+    // --- PARSING MATERIAL SHADER ATTRIBUTES ---
+    try {
+      const fileBuffer = await selectedTargetFile.arrayBuffer();
+      const materialData = parseSmashMaterial(fileBuffer);
+
+      console.log(`Inspecting Custom Shader properties table for: ${materialData.materialName}`);
+
+      // Locate the active geometry mesh running on our grid stage canvas right now
+      const activeMesh = scene?.getObjectByName("active_character_mesh") as THREE.Mesh;
+      
+      if (activeMesh && 'material' in activeMesh) {
+        const meshMat = activeMesh.material as THREE.MeshStandardMaterial;
+
+        // Smash ultimate utilizes unique property strings to assign material colors.
+        // We scan for common parameters (like CustomVector3 or CustomBoolean) to update render states.
+        materialData.parameters.forEach(param => {
+          if (param.name.includes("CustomVector0") || param.name.includes("Diffuse")) {
+            // Apply a unique surface color tint based on our parsed float properties log
+            meshMat.color.setHSL(param.values[0] % 1.0, 0.5, 0.6);
+            meshMat.needsUpdate = true;
+          }
+        });
+
+        console.log("Success: Viewport material properties updated with custom shader color tracks!");
+      } else {
+        console.warn("No active character geometric sub-mesh found on screen to map material traits onto.");
+      }
+
+    } catch (matError) {
+      console.error("Failed to parse or apply material properties track files:", matError);
+    }
+  }
+
 async function runTauriDesktopImport() {
   try {
     const tauriApiDialog = '@tauri-apps/plugin-dialog';
