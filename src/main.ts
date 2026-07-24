@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { SSBUModFiles } from './types';
 import { parseSmashMesh } from './meshParser';
+import { parseSmashSkeleton } from './skeletonParser';
 
 // Global Engine Variables
 let scene: THREE.Scene;
@@ -17,7 +18,7 @@ const activeModContext: SSBUModFiles = { textures: [] };
 // Track files inside a local temporary flat array map cache for fast lookup selection
 let loadedFileMemoryCache: File[] = [];
 
-// --- 1. RUN THE GRAPHICS ENGINE IMMEDIATELY ---
+// Initialize immediately
 initEngine();
 
 function initEngine(): void {
@@ -48,7 +49,6 @@ function initEngine(): void {
     const visualGrid = new THREE.GridHelper(20, 20, 0x0a84ff, 0x444446);
     scene.add(visualGrid);
 
-    // Initial placeholder item configuration
     const geometry = new THREE.BoxGeometry(2, 2, 2);
     const material = new THREE.MeshStandardMaterial({ color: 0x0a84ff, roughness: 0.4 });
     const meshPlaceholder = new THREE.Mesh(geometry, material);
@@ -67,10 +67,11 @@ function renderLoop(): void {
   requestAnimationFrame(renderLoop);
   if (controls) controls.update();
   
-  const targetCube = scene.getObjectByName("placeholder_cube");
-  if (targetCube) targetCube.rotation.y += 0.003;
-
-  if (renderer && scene && camera) renderer.render(scene, camera);
+  if (scene) {
+    const targetCube = scene.getObjectByName("placeholder_cube");
+    if (targetCube) targetCube.rotation.y += 0.003;
+    if (renderer && camera) renderer.render(scene, camera);
+  }
 }
 
 function handleResize(): void {
@@ -80,12 +81,9 @@ function handleResize(): void {
   renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
-// --- 2. FILE HANDLING SYSTEMS ---
-
 function evaluateAndStoreFile(file: File): void {
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
   
-  // Track all discovered compatible files inside our runtime access cache list index mapping
   if (['numdlb', 'numshb', 'nusktb', 'numatb', 'nutexb'].includes(fileExtension || '')) {
     loadedFileMemoryCache.push(file);
     const assignedIndex = loadedFileMemoryCache.length - 1;
@@ -105,7 +103,6 @@ function appendFileToUI(fileName: string, cacheIndex: number): void {
   const item = document.createElement('li');
   item.className = 'file-item';
   item.textContent = `📄 ${fileName}`;
-  // Store the array cache indicator reference onto the DOM list object element safely
   item.setAttribute('data-cache-index', cacheIndex.toString());
   fileListUI.appendChild(item);
 }
@@ -120,23 +117,18 @@ function resetModContext(): void {
   activeModContext.textures = [];
 }
 
-/**
- * Direct file parsing pipeline processor engine
- */
 async function renderTargetMeshFile(meshFile: File): Promise<void> {
   try {
     const fileBuffer = await meshFile.arrayBuffer();
-    
-    // Unpack data maps
     const unpackedMeshData = parseSmashMesh(fileBuffer);
 
-    // Wipe any existing assets from your tracking view layer explicitly
+    if (!scene) return;
+    
     const originalCube = scene.getObjectByName("placeholder_cube");
     if (originalCube) scene.remove(originalCube);
     
     const existingCharacter = scene.getObjectByName("active_character_mesh");
     if (existingCharacter) {
-      // Dispose geometry and materials out of GPU memory to stop resource leakage leaks
       if ('geometry' in existingCharacter) (existingCharacter.geometry as THREE.BufferGeometry).dispose();
       scene.remove(existingCharacter);
     }
@@ -144,44 +136,40 @@ async function renderTargetMeshFile(meshFile: File): Promise<void> {
     const meshGeometry = new THREE.BufferGeometry();
     meshGeometry.setAttribute('position', new THREE.BufferAttribute(unpackedMeshData.positions, 3));
     meshGeometry.setIndex(new THREE.BufferAttribute(unpackedMeshData.indices, 1));
-    
-    // Force WebGL to map tracking normals and limits from data pools
     meshGeometry.computeVertexNormals();
-    meshGeometry.computeBoundingBox();
-    meshGeometry.computeBoundingSphere();
 
     const renderMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x8e8e93, 
-      roughness: 0.6,
-      metalness: 0.2,
-      side: THREE.DoubleSide,
-      wireframe: false // Switch this to true if you ever want to check wireframe polygon flow lines!
+      color: 0x909090, 
+      roughness: 0.5,
+      metalness: 0.1,
+      side: THREE.DoubleSide
     });
 
     const characterMesh = new THREE.Mesh(meshGeometry, renderMaterial);
     characterMesh.name = "active_character_mesh";
     characterMesh.position.set(0, 0, 0); 
-    
     scene.add(characterMesh);
 
-    // Dynamic Camera Autofocus: Centers your Orbit camera target onto the geometry bounds automatically
-    if (meshGeometry.boundingSphere) {
-      const radius = meshGeometry.boundingSphere.radius;
-      controls.maxDistance = radius * 10;
-      camera.lookAt(meshGeometry.boundingSphere.center);
-    }
-
-    console.log(`Successfully parsed and rendered active asset mesh: ${meshFile.name}`);
+    console.log(`Successfully parsed and displayed selected asset mesh: ${meshFile.name}`);
   } catch (parseError) {
-    console.error("Binary mesh mapping pipeline aborted during component swap:", parseError);
+    console.error("Binary mesh mapping pipeline aborted:", parseError);
   }
 }
 
-// --- 3. UNIVERSAL INTERACTION LISTENERS ---
+async function verifyImportResults(): Promise<void> {
+  if (!activeModContext.model && !activeModContext.mesh) {
+    fileListUI.innerHTML = `<p style="text-align: center; color: #ff453a; font-size: 0.8rem; width: 100%;">No valid SSBU formats detected (.numdlb / .numshb).</p>`;
+    return;
+  }
+  if (activeModContext.mesh) {
+    await renderTargetMeshFile(activeModContext.mesh);
+  }
+}
+
+// --- INTERACTION LISTENERS ---
 
 const importBtn = document.getElementById('import-btn')!;
 
-// File List Sidebar Item Selection Handler Listener Click Action Event Routing
 fileListUI.addEventListener('click', async (e) => {
   const targetElement = e.target as HTMLElement;
   const itemElement = targetElement.closest('.file-item');
@@ -193,62 +181,39 @@ fileListUI.addEventListener('click', async (e) => {
   const cachedFileIndex = parseInt(rawIndex, 10);
   const selectedTargetFile = loadedFileMemoryCache[cachedFileIndex];
 
-  console.log(`User clicked sidebar entry list row asset element file: ${selectedTargetFile.name}`);
-
-  // Highlight selection states visually inside the browser UI view frame
   document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active-selection'));
   itemElement.classList.add('active-selection');
 
-  // Trigger geometry display routines if the user specifically picks a valid alternate target .numshb mesh wrapper
   if (selectedTargetFile.name.toLowerCase().endsWith('.numshb')) {
     await renderTargetMeshFile(selectedTargetFile);
-  } else {
-    console.log(`Selected layout data file type tracking structure info log attributes: ${selectedTargetFile.name}`);
-    // Additional conditional branches like texture lookups go here
+  } else if (selectedTargetFile.name.toLowerCase().endsWith('.nusktb')) {
+    try {
+      const fileBuffer = await selectedTargetFile.arrayBuffer();
+      const skeletonData = parseSmashSkeleton(fileBuffer);
+
+      if (!scene) return;
+
+      const existingSkeleton = scene.getObjectByName("active_character_skeleton");
+      if (existingSkeleton) scene.remove(existingSkeleton);
+
+      const skeletonGroup = new THREE.Group();
+      skeletonGroup.name = "active_character_skeleton";
+
+      skeletonData.bones.forEach(bone => {
+        const jointGeo = new THREE.SphereGeometry(0.1, 8, 8);
+        const jointMat = new THREE.MeshBasicMaterial({ color: 0x30d158 });
+        const jointMesh = new THREE.Mesh(jointGeo, jointMat);
+        
+        jointMesh.position.set(bone.position.x, bone.position.y, bone.position.z);
+        skeletonGroup.add(jointMesh);
+      });
+
+      scene.add(skeletonGroup);
+    } catch (skelError) {
+      console.error("Failed to translate character skeleton data arrays:", skelError);
+    }
   }
 });
-
-// Add this import statement right alongside your current parser hooks at the top header of main.ts
-import { parseSmashSkeleton } from './skeletonParser';
-
-// Locate your fileListUI click listener at the bottom area of your main.ts file
-// Look for the conditional branch where file strings are filtered, and update it to match this look:
-
-if (selectedTargetFile.name.toLowerCase().endsWith('.numshb')) {
-  await renderTargetMeshFile(selectedTargetFile);
-} else if (selectedTargetFile.name.toLowerCase().endsWith('.nusktb')) {
-  // --- RENDERING BONE SKELETON WIREFRAMES ---
-  try {
-    const fileBuffer = await selectedTargetFile.arrayBuffer();
-    const skeletonData = parseSmashSkeleton(fileBuffer);
-
-    // Clear previous temporary rig lines from view
-    const existingSkeleton = scene.getObjectByName("active_character_skeleton");
-    if (existingSkeleton) scene.remove(existingSkeleton);
-
-    // Create a group container to attach individual bone nodes together
-    const skeletonGroup = new THREE.Group();
-    skeletonGroup.name = "active_character_skeleton";
-
-    skeletonData.bones.forEach(bone => {
-      // Draw a tiny visual marker sphere at each individual joint location point
-      const jointGeo = new THREE.SphereGeometry(0.1, 8, 8);
-      const jointMat = new THREE.MeshBasicMaterial({ color: 0x30d158 }); // Bright neon green for bones
-      const jointMesh = new THREE.Mesh(jointGeo, jointMat);
-      
-      jointMesh.position.set(bone.position.x, bone.position.y, bone.position.z);
-      skeletonGroup.add(jointMesh);
-    });
-
-    scene.add(skeletonGroup);
-    console.log(`Successfully mapped bone structure overlay rigs for: ${selectedTargetFile.name}`);
-
-  } catch (skelError) {
-    console.error("Failed to translate character skeleton data arrays:", skelError);
-  }
-} else {
-  console.log(`Selected layout data file attributes info trace: ${selectedTargetFile.name}`);
-}
 
 async function runTauriDesktopImport() {
   try {
@@ -297,9 +262,3 @@ folderInput.addEventListener('change', async () => {
   }
   await verifyImportResults();
 });
-function verifyImportResults() {
-  throw new Error('Function not implemented.');
-}
-
-
-
