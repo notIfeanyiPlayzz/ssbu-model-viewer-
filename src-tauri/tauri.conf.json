@@ -2,12 +2,12 @@
   "version": "2.0.0",
   "productName": "ssbu-model-viewer",
   "identifier": "com.ssbumodelviewer.app",
-   "build": {
+  "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
-   },
+  },
   "app": {
     "windows": [
       {
@@ -24,10 +24,9 @@
       "csp": null
     }
   },
-    "bundle": {
+  "bundle": {
     "active": true,
     "targets": ["msi", "nsis"],
-    "identifier": "com.ssbumodelviewer.app",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
