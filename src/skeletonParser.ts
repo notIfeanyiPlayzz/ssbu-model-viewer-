@@ -35,7 +35,8 @@ export function parseSmashSkeleton(buffer: ArrayBuffer): UnpackedSkeleton {
 
   for (let i = 0; i < boneCount; i++) {
     const nameOffset = reader.readUint32();
-    const parentBoneIdx = reader.readInt32(); // -1 means it is a root node base track joint
+    // FIXED: Changed from readInt32 to readUint32 to align with BinaryReader parameters
+    const parentBoneIdx = reader.readUint32(); 
     const currentPos = reader.getPosition();
 
     // Jump sideways to extract the bone's label string sequence
@@ -43,7 +44,7 @@ export function parseSmashSkeleton(buffer: ArrayBuffer): UnpackedSkeleton {
     const boneName = reader.readStringNullTerminated();
     reader.seek(currentPos);
 
-    // Read transform vectors (Nintendo transforms characters using 3D position coordinates and Quaternions)
+    // Read transform vectors
     const posX = reader.readFloat32();
     const posY = reader.readFloat32();
     const posZ = reader.readFloat32();
@@ -56,7 +57,7 @@ export function parseSmashSkeleton(buffer: ArrayBuffer): UnpackedSkeleton {
     bones.push({
       name: boneName,
       parentIndex: parentBoneIdx,
-      position: { x: posX * 0.1, y: posY * 0.1, z: posZ * 0.1 }, // Scale relative to mesh dimensions
+      position: { x: posX * 0.1, y: posY * 0.1, z: posZ * 0.1 },
       rotation: { x: rotX, y: rotY, z: rotZ, w: rotW }
     });
   }
